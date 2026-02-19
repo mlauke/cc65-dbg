@@ -15,7 +15,7 @@ It expects the file to be placed beside the `"program"` binary,
 with `.dbg` extension.
 
 The idea is that your debugger/adapter should not know about the format of the source
-nor the assembler or compiler. It should just support breakpoints and interactive debugging.  
+nor the assembler or compiler. It should just support breakpoints and interactive debugging.
 On the other side, the debugging extension for particular assembler/compiler should work
 with many debuggers/emulators, supporting DAP protocol.
 
@@ -142,6 +142,7 @@ for the pack is being received.
 List of emulators supporting this variation of DAP:
 
 * Emu <img src="https://raw.githubusercontent.com/X65/emu/main/emu.gif" alt="Emu"> — The [X65 Computer](https://x65.zone/) Emulator.
+* Steckschwein — The [Steckschwein](https://www.steckschwein.de/) Emulator.
 
 If you know any other, please [create a PR][4] with an update to the list.
 

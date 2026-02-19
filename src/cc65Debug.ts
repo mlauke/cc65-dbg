@@ -684,11 +684,12 @@ export class Cc65DebugSession extends LoggingDebugSession {
 		const sourceLines = lines || breakpoints?.map(({ line }) => line) || [];
 
 		const sourcePath = normalizePath(source.path);
-		const sourceBase = path.isAbsolute(source.path)
+		const sourcePathInWorkspace = path.isAbsolute(source.path)
 			? normalizePath(path.relative(workspacePath, sourcePath))
 			: sourcePath;
+		const sourceBase = path.basename(sourcePathInWorkspace);
 
-		if (sourceBase.startsWith("..")) {
+		if (sourcePathInWorkspace.startsWith("..")) {
 			return this.sendErrorResponse(response, {
 				id: ErrorCodes.DAP_ENV_INCORRECT,
 				format: "File '{sourcePath}' does not belong to workspace '{workspacePath}'",
@@ -706,14 +707,12 @@ export class Cc65DebugSession extends LoggingDebugSession {
 		if (!response.body.breakpoints) response.body.breakpoints = [];
 
 		if (!dbgFile) {
-			response.body.breakpoints = sourceLines.map((line) => ({
-				verified: false,
-				source,
-				line,
-				reason: "failed",
-				message: `Source file '${source.path}' is missing in debug info file.`,
-			}));
-			return this.sendResponse(response);
+			return this.sendErrorResponse(response, {
+				id: ErrorCodes.DAP_ENV_INCORRECT,
+				format: "Source file '{sourceBase}' is missing in debug info file.",
+				variables: { sourceBase },
+				showUser: true,
+			});
 		}
 
 		// Store path base for later name reconstruction
