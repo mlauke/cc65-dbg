@@ -77,6 +77,7 @@ export class Cc65DebugSession extends LoggingDebugSession {
 	private _dataLength: number;
 
 	private _program: ChildProcessWithoutNullStreams | undefined;
+	private _programDirname: string;
 
 	private _websocket: WebSocket | undefined;
 	private _connected = false;
@@ -110,6 +111,13 @@ export class Cc65DebugSession extends LoggingDebugSession {
 			this._session.configuration.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Stop,
 			false,
 		);
+
+		const workspacePath = normalizePath(
+			path.resolve(this._session.workspaceFolder?.uri.fsPath || "."),
+		);
+		const { program } = this._session.configuration;
+		const programPath = path.resolve(this._session.workspaceFolder?.uri.fsPath || ".", program);
+		this._programDirname = path.dirname(programPath);
 	}
 
 	/**
@@ -327,6 +335,7 @@ export class Cc65DebugSession extends LoggingDebugSession {
 									name: wsFile,
 									path: path.resolve(
 										this._session.workspaceFolder?.uri.fsPath || ".",
+										this._programDirname,
 										wsFile,
 									),
 									presentationHint: "emphasize",
@@ -363,6 +372,7 @@ export class Cc65DebugSession extends LoggingDebugSession {
 										name: wsFile,
 										path: path.resolve(
 											this._session.workspaceFolder?.uri.fsPath || ".",
+											this._programDirname,
 											wsFile,
 										),
 									};
@@ -410,6 +420,7 @@ export class Cc65DebugSession extends LoggingDebugSession {
 									name: wsFile,
 									path: path.resolve(
 										this._session.workspaceFolder?.uri.fsPath || ".",
+										this._programDirname,
 										wsFile,
 									),
 								};
@@ -684,12 +695,12 @@ export class Cc65DebugSession extends LoggingDebugSession {
 		const sourceLines = lines || breakpoints?.map(({ line }) => line) || [];
 
 		const sourcePath = normalizePath(source.path);
-		const sourcePathInWorkspace = path.isAbsolute(source.path)
+		const sourceBase = path.isAbsolute(source.path)
 			? normalizePath(path.relative(workspacePath, sourcePath))
 			: sourcePath;
-		const sourceBase = path.basename(sourcePathInWorkspace);
+		const dbgFileBaseName = path.basename(sourceBase);
 
-		if (sourcePathInWorkspace.startsWith("..")) {
+		if (sourceBase.startsWith("..")) {
 			return this.sendErrorResponse(response, {
 				id: ErrorCodes.DAP_ENV_INCORRECT,
 				format: "File '{sourcePath}' does not belong to workspace '{workspacePath}'",
@@ -700,7 +711,7 @@ export class Cc65DebugSession extends LoggingDebugSession {
 
 		const dbgFile = this._debugData?.file.find((file) => {
 			const filePath = `${path.posix.sep}${normalizePath(file.name)}`;
-			return filePath.endsWith(`${path.posix.sep}${sourceBase}`);
+			return filePath.endsWith(`${path.posix.sep}${dbgFileBaseName}`);
 		});
 
 		if (!response.body) response.body = { breakpoints: [] };
