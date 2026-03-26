@@ -66,6 +66,7 @@ To start the emulator and begin debugging automatically:
   "args": ["--dap"],
   "stopOnEntry": true,
   "cwd": "${workspaceFolder}",
+  "srcDirs": ["${workspaceFolder}/lib/src", ...],
   "trace": true
 }
 ```
@@ -75,6 +76,7 @@ To start the emulator and begin debugging automatically:
 * `args`: Enter whatever arguments your emulator needs to enable DAP server.
 * `stopOnEntry`: Set to `true` to halt at program start.
 * `cwd`: Working directory.
+* `srcDirs`: Optional additional list of paths to lookup for source files
 * `trace`: Enables DAP message logging for troubleshooting.
 
 ### Attach to a Running Emulator
