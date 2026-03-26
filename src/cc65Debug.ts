@@ -705,21 +705,27 @@ export class Cc65DebugSession extends LoggingDebugSession {
 			});
 		}
 		const dbgFileBaseName = path.basename(sourceBase);
+		const dbgFileSize = fs.statSync(source.path).size;
 		const dbgFile = this._debugData?.file.find((file) => {
 			const filePath = `${path.posix.sep}${normalizePath(file.name)}`;
-			return filePath.endsWith(`${path.posix.sep}${dbgFileBaseName}`);
+			return (
+				dbgFileSize === file.size &&
+				filePath.endsWith(`${path.posix.sep}${dbgFileBaseName}`)
+			);
 		});
 
 		if (!response.body) response.body = { breakpoints: [] };
 		if (!response.body.breakpoints) response.body.breakpoints = [];
 
 		if (!dbgFile) {
-			return this.sendErrorResponse(response, {
-				id: ErrorCodes.DAP_ENV_INCORRECT,
-				format: "Source file '{sourceBase}' is missing in debug info file.",
-				variables: { sourceBase },
-				showUser: true,
-			});
+			response.body.breakpoints = sourceLines.map((line) => ({
+				verified: false,
+				source,
+				line,
+				reason: "failed",
+				message: `Source file '${source.path}' is missing in debug info file.`,
+			}));
+			return this.sendResponse(response);
 		}
 
 		// Store path base for later name reconstruction
@@ -937,9 +943,9 @@ export class Cc65DebugSession extends LoggingDebugSession {
 			path.resolve(this._session.workspaceFolder?.uri.fsPath || "."),
 		);
 		// build path and do fs lookup
-		for (const pathBase of this._debugPathBases as string[]) {
+		for (const pathBase of this._debugPathBases) {
 			const candidate = path.resolve(workspaceFolder, pathBase, fileName);
-			if (fs.existsSync(candidate)) {
+			if (fs.existsSync(candidate) && fs.statSync(candidate).size === dbgFile.size) {
 				return normalizePath(path.relative(workspaceFolder, candidate));
 			}
 		}
