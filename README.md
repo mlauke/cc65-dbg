@@ -144,7 +144,7 @@ for the pack is being received.
 List of emulators supporting this variation of DAP:
 
 * Emu <img src="https://raw.githubusercontent.com/X65/emu/main/emu.gif" alt="Emu"> — The [X65 Computer](https://x65.zone/) Emulator.
-* Steckschwein — The [Steckschwein](https://www.steckschwein.de/) Emulator.
+* Steckschwein <img src="https://www.steckschwein.de/steckschwein32.png" alt="Steckschwein Emulator"> — The [Steckschwein](https://www.steckschwein.de/) Emulator.
 
 If you know any other, please [create a PR][4] with an update to the list.
 
