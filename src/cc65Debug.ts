@@ -725,9 +725,6 @@ export class Cc65DebugSession extends LoggingDebugSession {
 		// Store path base for later name reconstruction
 		const fileBase = sourceBase.slice(0, -normalizePath(dbgFile.name).length);
 		if (!this._debugPathBases.includes(fileBase)) this._debugPathBases.push(fileBase);
-		// Store source path dirname for later name reconstruction
-		//const sourceDirName = path.dirname(sourceBase);
-		//if (!this._debugPathBases.includes(sourceDirName)) this._debugPathBases.push(sourceDirName);
 
 		// map source lines to memory addresses
 		const { arguments: requestArguments } = request as DebugProtocol.SetBreakpointsRequest;
