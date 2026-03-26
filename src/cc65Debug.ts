@@ -108,7 +108,7 @@ export class Cc65DebugSession extends LoggingDebugSession {
 		this.setDebuggerLinesStartAt1(true);
 		this.setDebuggerColumnsStartAt1(true);
 
-		const { srcDirs } = this._session.configuration;
+		const srcDirs: string[] = this._session.configuration.srcDirs || [];
 
 		this._debugPathBases = [
 			...new Set([...this._debugPathBases, ...((srcDirs as string[]) ?? [])]),
