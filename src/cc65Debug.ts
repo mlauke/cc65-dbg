@@ -108,11 +108,7 @@ export class Cc65DebugSession extends LoggingDebugSession {
 		this.setDebuggerLinesStartAt1(true);
 		this.setDebuggerColumnsStartAt1(true);
 
-		const workspacePath = normalizePath(
-			path.resolve(this._session.workspaceFolder?.uri.fsPath || "."),
-		);
-		const { program, srcDirs } = this._session.configuration;
-		const programPath = path.resolve(this._session.workspaceFolder?.uri.fsPath || ".", program);
+		const { srcDirs } = this._session.configuration;
 
 		this._debugPathBases = [
 			...new Set([...this._debugPathBases, ...((srcDirs as string[]) ?? [])]),
