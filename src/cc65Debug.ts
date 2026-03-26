@@ -12,6 +12,7 @@
  */
 
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
+import * as fs from "node:fs";
 import * as path from "node:path";
 import { Logger, LoggingDebugSession, TerminatedEvent, logger } from "@vscode/debugadapter";
 import type { DebugProtocol } from "@vscode/debugprotocol";
@@ -52,6 +53,8 @@ interface IRequestArguments extends DebugProtocol.LaunchRequestArguments {
 	trace?: boolean;
 	/** run without debugging */
 	noDebug?: boolean;
+	/** An additional list of lookup paths for source files - e.g. required if we step from main debug code into a subroutine of a library */
+	srcDirs?: string[];
 }
 
 interface ILaunchRequestArguments extends IRequestArguments {
@@ -77,7 +80,6 @@ export class Cc65DebugSession extends LoggingDebugSession {
 	private _dataLength: number;
 
 	private _program: ChildProcessWithoutNullStreams | undefined;
-	private _programDirname: string;
 
 	private _websocket: WebSocket | undefined;
 	private _connected = false;
@@ -106,18 +108,20 @@ export class Cc65DebugSession extends LoggingDebugSession {
 		this.setDebuggerLinesStartAt1(true);
 		this.setDebuggerColumnsStartAt1(true);
 
+		const workspacePath = normalizePath(
+			path.resolve(this._session.workspaceFolder?.uri.fsPath || "."),
+		);
+		const { program, srcDirs } = this._session.configuration;
+		const programPath = path.resolve(this._session.workspaceFolder?.uri.fsPath || ".", program);
+
+		this._debugPathBases = [
+			...new Set([...this._debugPathBases, ...((srcDirs as string[]) ?? [])]),
+		];
 		// make sure to 'Stop' the buffered logging if 'trace' is not set
 		logger.setup(
 			this._session.configuration.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Stop,
 			false,
 		);
-
-		const workspacePath = normalizePath(
-			path.resolve(this._session.workspaceFolder?.uri.fsPath || "."),
-		);
-		const { program } = this._session.configuration;
-		const programPath = path.resolve(this._session.workspaceFolder?.uri.fsPath || ".", program);
-		this._programDirname = path.dirname(programPath);
 	}
 
 	/**
@@ -335,7 +339,6 @@ export class Cc65DebugSession extends LoggingDebugSession {
 									name: wsFile,
 									path: path.resolve(
 										this._session.workspaceFolder?.uri.fsPath || ".",
-										this._programDirname,
 										wsFile,
 									),
 									presentationHint: "emphasize",
@@ -372,7 +375,6 @@ export class Cc65DebugSession extends LoggingDebugSession {
 										name: wsFile,
 										path: path.resolve(
 											this._session.workspaceFolder?.uri.fsPath || ".",
-											this._programDirname,
 											wsFile,
 										),
 									};
@@ -420,7 +422,6 @@ export class Cc65DebugSession extends LoggingDebugSession {
 									name: wsFile,
 									path: path.resolve(
 										this._session.workspaceFolder?.uri.fsPath || ".",
-										this._programDirname,
 										wsFile,
 									),
 								};
@@ -698,7 +699,6 @@ export class Cc65DebugSession extends LoggingDebugSession {
 		const sourceBase = path.isAbsolute(source.path)
 			? normalizePath(path.relative(workspacePath, sourcePath))
 			: sourcePath;
-		const dbgFileBaseName = path.basename(sourceBase);
 
 		if (sourceBase.startsWith("..")) {
 			return this.sendErrorResponse(response, {
@@ -708,7 +708,7 @@ export class Cc65DebugSession extends LoggingDebugSession {
 				showUser: true,
 			});
 		}
-
+		const dbgFileBaseName = path.basename(sourceBase);
 		const dbgFile = this._debugData?.file.find((file) => {
 			const filePath = `${path.posix.sep}${normalizePath(file.name)}`;
 			return filePath.endsWith(`${path.posix.sep}${dbgFileBaseName}`);
@@ -727,8 +727,11 @@ export class Cc65DebugSession extends LoggingDebugSession {
 		}
 
 		// Store path base for later name reconstruction
-		const fileBase = normalizePath(dbgFile.name).slice(0, -sourceBase.length);
+		const fileBase = sourceBase.slice(0, -normalizePath(dbgFile.name).length);
 		if (!this._debugPathBases.includes(fileBase)) this._debugPathBases.push(fileBase);
+		// Store source path dirname for later name reconstruction
+		//const sourceDirName = path.dirname(sourceBase);
+		//if (!this._debugPathBases.includes(sourceDirName)) this._debugPathBases.push(sourceDirName);
 
 		// map source lines to memory addresses
 		const { arguments: requestArguments } = request as DebugProtocol.SetBreakpointsRequest;
@@ -936,9 +939,15 @@ export class Cc65DebugSession extends LoggingDebugSession {
 	// --------------------------------------------------------------------
 	private dbgFile2workspace(dbgFile: DbgFile) {
 		const fileName = normalizePath(dbgFile.name);
-		for (const base of this._debugPathBases) {
-			if (fileName.startsWith(base)) {
-				return fileName.slice(base.length);
+		// lookup relative to workspaceFolder
+		const workspaceFolder = normalizePath(
+			path.resolve(this._session.workspaceFolder?.uri.fsPath || "."),
+		);
+		// build path and do fs lookup
+		for (const pathBase of this._debugPathBases as string[]) {
+			const candidate = path.resolve(workspaceFolder, pathBase, fileName);
+			if (fs.existsSync(candidate)) {
+				return normalizePath(path.relative(workspaceFolder, candidate));
 			}
 		}
 	}
